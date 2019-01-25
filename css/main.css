@@ -1,0 +1,54 @@
+@font-face {
+  font-family: poppins;
+  src: url('../fonts/Poppins/Poppins-Regular.ttf');
+}
+
+@font-face {
+  font-family: open-sans;
+  src: url('../fonts/OpenSans/OpenSans-Regular.ttf');
+}
+
+body{
+  background-color: black;
+  color: white;
+}
+
+h1{
+  font-family: poppins;
+  font-size: 2em;
+}
+
+h2{
+  font-family: poppins;
+}
+
+hr {
+  margin: 0;
+  margin-right: 2em;
+  margin-left: 2em;
+}
+
+.profile-img{
+  background-image: url('https://pbs.twimg.com/profile_images/968208873155911686/CHtuNqSo_400x400.jpg');
+  width: 15em;
+  height: 15em;
+  border-style: solid;
+  border-width: thick;
+  border-color: white;
+  border-radius: 50%;
+  background-position: 0% 50%;
+}
+
+.container{
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.about-me{
+  text-align: center;
+  margin-left: 2em;
+  margin-right: 2em;
+  font-family: open-sans;
+}
