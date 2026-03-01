@@ -1,143 +1,332 @@
+/* ============================================================
+   Alejandro García — Portfolio
+   Modern dark theme, pure CSS, no external dependencies
+   ============================================================ */
+
+/* ---------- Fonts ---------- */
 @font-face {
-  font-family: poppins;
-  src: url('../fonts/Poppins/Poppins-Regular.ttf');
+  font-family: 'Poppins';
+  src: url('../fonts/Poppins/Poppins-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
 }
-
 @font-face {
-  font-family: open-sans;
-  src: url('../fonts/OpenSans/OpenSans-Regular.ttf');
+  font-family: 'OpenSans';
+  src: url('../fonts/OpenSans/OpenSans-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
 }
 
-body{
-  background-color: black;
-  color: white;
-}
-
-h1{
-  font-family: poppins;
-  font-size: 2em;
-}
-
-h2{
-  font-family: poppins;
-}
-
-hr {
+/* ---------- Reset / Base ---------- */
+*, *::before, *::after {
+  box-sizing: border-box;
   margin: 0;
-  margin-right: 10%;
-  margin-left: 10%;
+  padding: 0;
 }
 
-span{
+:root {
+  --bg:          #0d0f14;
+  --bg-alt:      #111318;
+  --surface:     #1a1d26;
+  --surface-2:   #21253200;
+  --border:      rgba(255,255,255,.07);
+  --text:        #e2e4ef;
+  --text-muted:  #8b90a8;
+  --accent:      #7c6ef5;
+  --accent-2:    #56cfb2;
+  --glow:        rgba(124, 110, 245, .45);
+  --radius-pill: 999px;
+  --radius-card: 16px;
+  --transition:  .25s cubic-bezier(.4,0,.2,1);
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: 'OpenSans', system-ui, sans-serif;
+  background-color: var(--bg);
+  color: var(--text);
+  line-height: 1.65;
+  min-height: 100vh;
+  /* Subtle radial highlight at top */
+  background-image:
+    radial-gradient(ellipse 80% 50% at 50% -10%, rgba(124,110,245,.18) 0%, transparent 70%);
+}
+
+a { color: inherit; text-decoration: none; }
+strong { color: #fff; font-weight: 600; }
+
+/* ---------- Layout ---------- */
+.container {
+  width: min(720px, 100% - 2.5rem);
+  margin-inline: auto;
+}
+
+/* ---------- Hero ---------- */
+.hero {
+  min-height: 100svh;
   display: flex;
-  align-items: center;
+  flex-direction: column;
   justify-content: center;
+  padding: 5rem 1.25rem 3rem;
+  position: relative;
 }
 
-footer{
-  height: 3em;
-}
-
-.description{
-  margin-top: 5px;
-  margin-bottom: 5px;
-  font-family: open-sans;
-  font-weight: 700;
+.hero__inner {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
+  gap: 2.5rem;
+  width: min(760px, 100%);
+  margin-inline: auto;
+  animation: fadeUp .7s ease both;
 }
 
-.profile-img{
-  background-image: url('../img/profile.jpg');
-  width: 15em;
-  height: 15em;
-  border-style: solid;
-  border-width: thick;
-  border-color: white;
+/* Photo */
+.hero__photo-wrap {
+  flex-shrink: 0;
+  width: 148px;
+  height: 148px;
   border-radius: 50%;
-  background-size: 100%;
-  background-repeat: no-repeat;
-  background-position: center;
+  padding: 3px;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  box-shadow: 0 0 40px var(--glow), 0 0 80px rgba(86,207,178,.15);
+  animation: pulse-glow 4s ease-in-out infinite;
 }
 
-.container{
+.hero__photo {
   width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  display: block;
+  border: 3px solid var(--bg);
 }
 
-.social{
-  width: 49%;
-  display: inline-block;
-  margin-top: 10px;
-}
-
-.about-me{
+/* Text */
+.hero__text {
   text-align: center;
-  margin-left: 10%;
-  margin-right: 10%;
-  font-family: open-sans;
 }
 
-.fab, .fas{
-  font-size: 7em;
-  color: gray;
-  background-color: white;
-  padding: 20px;
-  border-radius: 50%;
+.hero__greeting {
+  font-family: 'OpenSans', sans-serif;
+  color: var(--text-muted);
+  font-size: .9rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  margin-bottom: .25rem;
 }
 
-.fa-twitter{
-  color: #00aced;
+.hero__name {
+  font-family: 'Poppins', sans-serif;
+  font-size: clamp(2rem, 6vw, 3.4rem);
+  font-weight: 400;
+  letter-spacing: -.01em;
+  line-height: 1.1;
+  color: #fff;
+  margin-bottom: .4rem;
 }
 
-.fa-instagram{
-  color: #8a3ab9;
+.hero__title {
+  font-family: 'Poppins', sans-serif;
+  font-size: clamp(.95rem, 2.5vw, 1.25rem);
+  color: var(--accent);
+  letter-spacing: .04em;
+  margin-bottom: .75rem;
+  position: relative;
+  display: inline-block;
+}
+.hero__title::after {
+  content: '';
+  display: block;
+  height: 2px;
+  width: 40%;
+  margin: .4rem auto 0;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+  border-radius: 2px;
 }
 
-.fa-github, .fa-envelope{
-  color: black;
+.hero__location {
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  color: var(--text-muted);
+  font-size: .85rem;
+  margin-bottom: 2rem;
+}
+.hero__location svg { opacity: .7; }
+
+/* Scroll hint */
+.hero__scroll-hint {
+  position: absolute;
+  bottom: 1.75rem;
+  left: 50%;
+  transform: translateX(-50%);
+  color: var(--text-muted);
+  opacity: .4;
+  animation: bounce 2s ease-in-out infinite;
 }
 
-.fa-linkedin-in{
-  color: #0077B5;
+/* ---------- Social Pills ---------- */
+.social-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .6rem;
+  justify-content: center;
 }
 
-.mail{
-  width: 100%;
+.social-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: .45rem;
+  padding: .45rem 1rem;
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  font-size: .82rem;
+  color: var(--text-muted);
+  transition: background var(--transition), color var(--transition), border-color var(--transition), transform var(--transition), box-shadow var(--transition);
+}
+.social-pill:hover {
+  background: rgba(124,110,245,.12);
+  border-color: var(--accent);
+  color: #fff;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(124,110,245,.2);
 }
 
-@media (min-width:750px) {
-  .fab, .fas{
-    font-size: 7em;
-    color: gray;
-    background-color: white;
-    padding: 20px;
-    border-radius: 50%;
+.social-pill--accent {
+  background: linear-gradient(135deg, var(--accent), #6058d5);
+  border-color: transparent;
+  color: #fff;
+}
+.social-pill--accent:hover {
+  background: linear-gradient(135deg, #8f80ff, var(--accent));
+  border-color: transparent;
+  box-shadow: 0 6px 24px var(--glow);
+}
+
+/* ---------- Sections ---------- */
+.section {
+  padding: 5rem 1.25rem;
+}
+.section--alt {
+  background: var(--bg-alt);
+}
+
+.section__title {
+  font-family: 'Poppins', sans-serif;
+  font-size: clamp(1.4rem, 4vw, 2rem);
+  font-weight: 400;
+  color: #fff;
+  margin-bottom: 1.75rem;
+  position: relative;
+  padding-left: 1rem;
+}
+.section__title::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: .15em;
+  bottom: .15em;
+  width: 3px;
+  border-radius: 3px;
+  background: linear-gradient(180deg, var(--accent), var(--accent-2));
+}
+
+/* ---------- About ---------- */
+.about__text {
+  font-size: 1rem;
+  color: var(--text-muted);
+  max-width: 62ch;
+  line-height: 1.8;
+}
+.about__text + .about__text { margin-top: 1rem; }
+.about__text strong { color: var(--text); }
+
+/* ---------- Skills Grid ---------- */
+.skills-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.skill-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  padding: 1.5rem 1.25rem;
+  transition: transform var(--transition), border-color var(--transition), box-shadow var(--transition);
+  animation: fadeUp .6s ease both;
+}
+.skill-card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(124,110,245,.35);
+  box-shadow: 0 8px 30px rgba(124,110,245,.1);
+}
+
+.skill-card__icon {
+  font-size: 1.6rem;
+  display: block;
+  margin-bottom: .6rem;
+}
+.skill-card__title {
+  font-family: 'Poppins', sans-serif;
+  font-weight: 400;
+  font-size: .95rem;
+  color: #fff;
+  margin-bottom: .3rem;
+}
+.skill-card__desc {
+  font-size: .8rem;
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+
+/* ---------- Footer ---------- */
+.footer {
+  padding: 2.5rem 1.25rem;
+  text-align: center;
+  font-size: .8rem;
+  color: var(--text-muted);
+  border-top: 1px solid var(--border);
+}
+
+/* ---------- Animations ---------- */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 30px var(--glow), 0 0 60px rgba(86,207,178,.12); }
+  50%       { box-shadow: 0 0 55px var(--glow), 0 0 100px rgba(86,207,178,.22); }
+}
+
+@keyframes bounce {
+  0%, 100% { transform: translateX(-50%) translateY(0); }
+  50%       { transform: translateX(-50%) translateY(6px); }
+}
+
+/* ---------- Responsive: Tablet + ---------- */
+@media (min-width: 640px) {
+  .hero__inner {
+    flex-direction: row;
+    align-items: center;
+    text-align: left;
   }
-  .social{
-    width:19%;
-    margin-top: 20px;
-  }
-  .fa-twitter:focus, .fa-twitter:hover{
-    color: #00aced;
-  }
+  .hero__text { text-align: left; }
+  .hero__title::after { margin: .4rem 0 0; }
+  .social-row { justify-content: flex-start; }
+  .hero__photo-wrap { width: 170px; height: 170px; }
+}
 
-  .fa-instagram:focus, .fa-instagram:hover{
-    color: #8a3ab9;
-  }
-
-  .fa-github:focus, .fa-envelope:focus, .fa-github:hover, .fa-envelope:hover{
-    color: black;
-  }
-
-  .fa-linkedin-in:focus, .fa-linkedin-in:hover{
-    color: #0077B5;
-  }
-
-  .mail{
-    width: 19%;
+/* ---------- Reduced Motion ---------- */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    transition-duration: .01ms !important;
   }
 }
