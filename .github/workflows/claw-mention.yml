@@ -1,0 +1,21 @@
+name: Notify Claw on PR comment mention
+
+on:
+  issue_comment:
+    types: [created]
+
+jobs:
+  notify:
+    if: github.event.issue.pull_request != null && contains(github.event.comment.body, '@claw')
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Forward mention to Claw
+        run: |
+          PAYLOAD='${{ toJson(github.event) }}'
+          SECRET='${{ secrets.CLAW_WEBHOOK_SECRET }}'
+          SIG="sha256=$(echo -n "$PAYLOAD" | openssl dgmac -sha256 -macopt "key:$SECRET" | awk '{print $2}')"
+          curl -s -X POST https://alexgar.tech/webhook/github \
+            -H "Content-Type: application/json" \
+            -H "X-Hub-Signature-256: $SIG" \
+            -d "$PAYLOAD"
