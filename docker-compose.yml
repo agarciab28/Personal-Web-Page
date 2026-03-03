@@ -1,0 +1,7 @@
+services:
+  personal-web:
+    build: .
+    container_name: alexgar-web
+    restart: unless-stopped
+    ports:
+      - "3000:80"
