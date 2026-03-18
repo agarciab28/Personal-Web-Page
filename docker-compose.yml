@@ -4,4 +4,4 @@ services:
     container_name: alexgar-web
     restart: unless-stopped
     ports:
-      - "3000:80"
+      - "127.0.0.1:3000:80"
