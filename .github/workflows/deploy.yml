@@ -13,9 +13,41 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
 
+    # id-token: write lo exige la federación de identidad (OIDC) de Tailscale.
+    permissions:
+      contents: read
+      id-token: write
+
     steps:
       - name: Descargar el repositorio
         uses: actions/checkout@v4
+
+      # UFW solo permite al runner acceder a SSH por tailscale0 (ver docs/deploy.md).
+      # Sin estas variables no hay forma de llegar al servidor: falla pronto.
+      - name: Validar configuración de despliegue
+        env:
+          TS_CLIENT_ID: ${{ vars.TS_CLIENT_ID }}
+          TS_AUDIENCE: ${{ vars.TS_AUDIENCE }}
+          SSH_TAILSCALE_HOST: ${{ vars.SSH_TAILSCALE_HOST }}
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+        run: |
+          set -euo pipefail
+          missing=()
+          for name in TS_CLIENT_ID TS_AUDIENCE SSH_TAILSCALE_HOST; do
+            [ -n "${!name:-}" ] || missing+=("variable $name")
+          done
+          for name in SSH_PRIVATE_KEY SSH_USER DEPLOY_PATH; do
+            [ -n "${!name:-}" ] || missing+=("secret $name")
+          done
+          if [ "${#missing[@]}" -gt 0 ]; then
+            for item in "${missing[@]}"; do
+              echo "::error::Falta la ${item} del repositorio (Settings → Secrets and variables → Actions). Ver docs/deploy.md."
+            done
+            exit 1
+          fi
+          echo "Configuración de despliegue completa."
 
       - name: Preparar Node
         uses: actions/setup-node@v4
@@ -29,19 +61,44 @@ jobs:
       - name: Compilar
         run: npm run build
 
+      - name: Conectar a Tailscale
+        uses: tailscale/github-action@d1b6cd204f8dceda5b3eaad7f1f767be390056cd # v4.2.0
+        with:
+          oauth-client-id: ${{ vars.TS_CLIENT_ID }}
+          audience: ${{ vars.TS_AUDIENCE }}
+          tags: tag:personal-web-deploy
+          ping: ${{ vars.SSH_TAILSCALE_HOST }}
+
       - name: Configurar la llave SSH
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SSH_TAILSCALE_HOST: ${{ vars.SSH_TAILSCALE_HOST }}
         run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_deploy
-          chmod 600 ~/.ssh/id_deploy
-          ssh-keyscan -H "${{ secrets.SSH_HOST }}" >> ~/.ssh/known_hosts
+          set -euo pipefail
+          umask 077
+          mkdir -p "$HOME/.ssh"
+          chmod 700 "$HOME/.ssh"
+          # La llave llega por env y se escribe con printf; se quitan los CR por si
+          # el secreto se pegó con finales de línea de Windows.
+          printf '%s\n' "$SSH_PRIVATE_KEY" | tr -d '\r' > "$HOME/.ssh/id_deploy"
+          chmod 600 "$HOME/.ssh/id_deploy"
+          if ! scan="$(ssh-keyscan -T 10 -H "$SSH_TAILSCALE_HOST")" || [ -z "$scan" ]; then
+            echo "::error::ssh-keyscan no obtuvo la clave de host de SSH_TAILSCALE_HOST por la tailnet en 10 s. Comprueba que el grant tag:personal-web-deploy -> VPS tcp:22 existe en la política de Tailscale y que sshd escucha en la IP de Tailscale. Ver docs/deploy.md."
+            exit 1
+          fi
+          printf '%s\n' "$scan" >> "$HOME/.ssh/known_hosts"
 
       - name: Publicar en el servidor
+        env:
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_TAILSCALE_HOST: ${{ vars.SSH_TAILSCALE_HOST }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
         run: |
+          set -euo pipefail
           rsync -avz --delete \
-            -e "ssh -i ~/.ssh/id_deploy -o StrictHostKeyChecking=yes" \
+            -e "ssh -i ~/.ssh/id_deploy -o StrictHostKeyChecking=yes -o BatchMode=yes -o IdentitiesOnly=yes -o ConnectTimeout=10" \
             dist/ \
-            "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ secrets.DEPLOY_PATH }}/"
+            "${SSH_USER}@${SSH_TAILSCALE_HOST}:${DEPLOY_PATH}/"
 
       # ── OJO: cambia "dist/" arriba por la carpeta que genere tu framework ──
       #   Astro, Vite, Vue        →  dist/
