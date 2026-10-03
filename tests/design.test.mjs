@@ -10,7 +10,7 @@ const js = read('../src/main.ts');
 test('conserva el titular aprobado del diseño editorial', () => {
   const h1 = html.match(/<h1\b[^>]*>([\s\S]*?)<\/h1>/i)?.[1] ?? '';
   const text = h1.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
-  assert.equal(text, 'Interfaces claras. Código bien pensado.');
+  assert.equal(text, 'Clear interfaces. Thoughtful code.');
 });
 
 test('no existe interfaz de pausa ni código muerto asociado', () => {
@@ -32,7 +32,7 @@ test('conserva los destinos públicos exactos', () => {
 });
 
 test('idioma, favicons y módulo principal', () => {
-  assert.match(html, /<html[^>]*\blang="es"/);
+  assert.match(html, /<html[^>]*\blang="en"/);
   assert.match(html, /rel="icon"[^>]*href="\/img\/favicon\/favicon\.ico"/);
   assert.match(html, /rel="apple-touch-icon"[^>]*href="\/img\/favicon\/apple-touch-icon\.png"/);
   assert.match(html, /<script type="module" src="\/src\/main\.ts"><\/script>/);
