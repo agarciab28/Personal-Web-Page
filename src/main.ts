@@ -1,4 +1,7 @@
 import './assets/css/main.css'
+import { initCopyEmail } from './copy-email'
+
+initCopyEmail()
 
 const EASE = 'cubic-bezier(.16,1,.3,1)'
 const root = document.documentElement
