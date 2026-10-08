@@ -14,7 +14,8 @@ ningún puerto público ni se cambia el firewall.
 
 > **No hagas merge a `master` ni lances el workflow a mano hasta completar
 > toda la configuración de abajo.** Cada push a `master` despliega; sin estas
-> variables el job falla en el paso «Validar configuración de despliegue».
+> variables el job falla en el paso «Validar configuración de despliegue» o
+> «Validar configuración de Cloudflare».
 
 ## 1. Identidad federada en Tailscale (OIDC, sin secretos de larga duración)
 
@@ -79,6 +80,13 @@ Variables **nuevas** (pestaña *Variables*, no son secretos):
 | `TS_CLIENT_ID` | Client ID de la identidad federada |
 | `TS_AUDIENCE` | Audience de la identidad federada (idéntico al de Tailscale) |
 | `SSH_TAILSCALE_HOST` | `100.124.13.38` (IP de Tailscale del VPS) |
+| `CLOUDFLARE_ZONE_ID` | Zone ID de `alexgar.tech` (32 caracteres hexadecimales en minúscula; ver sección 4) |
+
+Secreto **nuevo** (pestaña *Secrets*):
+
+| Secreto | Valor |
+| --- | --- |
+| `CLOUDFLARE_API_TOKEN` | Token de API de Cloudflare con solo *Zone → Cache Purge* (ver sección 4) |
 
 Secretos **existentes, sin cambios**: `SSH_PRIVATE_KEY`, `SSH_USER`,
 `DEPLOY_PATH`.
@@ -90,32 +98,96 @@ cuando el nuevo despliegue funcione.
 El job declara `permissions: contents: read` e `id-token: write`; este último
 es obligatorio para que la acción de Tailscale pida el token OIDC de GitHub.
 
-## 4. Qué hace el workflow
+## 4. Purga de caché de Cloudflare
+
+Tras publicar, el workflow pide a Cloudflare que purgue la caché **solo** de
+`alexgar.tech` y `www.alexgar.tech` (purga por host,
+`POST /client/v4/zones/{zone_id}/purge_cache` con
+`{"hosts": ["alexgar.tech", "www.alexgar.tech"]}`). Nunca purga toda la zona
+(`purge_everything`) ni otros subdominios.
+
+**Token de API** — en Cloudflare → **My Profile → API Tokens → Create Token →
+Custom token**:
+
+| Campo | Valor |
+| --- | --- |
+| Permissions | **Zone → Cache Purge → Purge**, nada más |
+| Zone Resources | **Include → Specific zone → `alexgar.tech`** (no «All zones») |
+| Client IP filtering / TTL | Opcionales; si pones TTL, recuerda rotarlo antes de que caduque |
+
+Guárdalo como secreto `CLOUDFLARE_API_TOKEN`. El **Zone ID** está en el panel
+de `alexgar.tech` → *Overview* → *API* → *Zone ID*; guárdalo como variable
+`CLOUDFLARE_ZONE_ID` (no es secreto, pero debe ser exactamente los 32
+caracteres hexadecimales en minúscula, sin espacios ni saltos de línea).
+
+**Semántica de fallo**:
+
+- Si falta la variable o el secreto, o el Zone ID no tiene el formato correcto,
+  el job falla en «Validar configuración de Cloudflare», **antes** de compilar
+  y de publicar nada.
+- Si la purga falla tras `rsync`, **el sitio nuevo ya está publicado en el
+  VPS** pero el workflow queda en rojo: puede que Cloudflare siga sirviendo
+  contenido antiguo hasta que caduque. Vuelve a lanzar el workflow (o purga a
+  mano esos dos hosts) cuando se resuelva la causa.
+- Reintenta solo errores transitorios (red, tiempo agotado, HTTP 429 y 5xx),
+  con un máximo de 4 intentos, 15 s por petición y espera exponencial (2 s,
+  4 s, 8 s; respeta `Retry-After` con tope de 30 s). El paso tiene además
+  `timeout-minutes: 3`. Los 4xx (por ejemplo 403 por permisos del token), las
+  respuestas con JSON inválido y las que no traen `"success": true` fallan sin
+  reintentar.
+- El log nunca muestra el token ni el cuerpo de la respuesta; solo el estado
+  HTTP y, si los hay, los códigos numéricos de error de Cloudflare.
+
+Un éxito significa que Cloudflare **aceptó** la petición de purga, no que se
+haya comprobado que todos sus nodos ya la aplicaron. Tampoco afecta a la caché
+de los navegadores de los visitantes, que depende de las cabeceras
+`Cache-Control` que sirve el VPS.
+
+## 5. Qué hace el workflow
 
 1. **Validar configuración de despliegue**: comprueba que existen las tres
    variables y los tres secretos y lista por nombre los que falten (nunca
    imprime valores).
-2. Instala dependencias (`npm i`) y compila (`npm run build`).
-3. **Conectar a Tailscale**: une el runner como nodo efímero con
+2. **Validar configuración de Cloudflare**: comprueba que existen
+   `CLOUDFLARE_ZONE_ID` (con formato de 32 hexadecimales en minúscula) y
+   `CLOUDFLARE_API_TOKEN`, sin imprimir valores.
+3. Instala dependencias (`npm i`) y compila (`npm run build`).
+4. **Conectar a Tailscale**: une el runner como nodo efímero con
    `tag:personal-web-deploy` y hace `ping` a `SSH_TAILSCALE_HOST`.
-4. **Configurar la llave SSH**: escribe la llave desde una variable de entorno
+5. **Configurar la llave SSH**: escribe la llave desde una variable de entorno
    con `printf` (quitando `\r` si se pegó con CRLF) y obtiene la clave de host
    con `ssh-keyscan -T 10`. Si no obtiene ninguna clave, falla con un error
    que apunta al grant y a este documento.
-5. **Publicar en el servidor**: `rsync -avz --delete dist/` a
+6. **Publicar en el servidor**: `rsync -avz --delete dist/` a
    `SSH_USER@SSH_TAILSCALE_HOST:DEPLOY_PATH/` con `StrictHostKeyChecking=yes`,
    `BatchMode=yes`, `IdentitiesOnly=yes` y `ConnectTimeout=10`.
+7. **Purgar caché de Cloudflare**: `node scripts/cloudflare-purge.mjs` (ver
+   sección 4). Solo se ejecuta si todo lo anterior ha ido bien.
 
-## 5. Pruebas
+## 6. Pruebas
 
 ```sh
-node --test tests/
+npm test   # node --test tests/*.test.mjs
 ```
+
+La suite completa se verificó con Node 26 (102 pruebas). Con Node 20, usado
+por el workflow, las pruebas de despliegue y purga pasan; siete pruebas
+preexistentes de `contact.test.mjs` requieren capacidades de carga de TypeScript
+que no están disponibles en ese runtime. El workflow no ejecuta esa suite y
+este cambio no modifica el código de contacto ni la versión de Node.
+
+Referencia oficial de la purga por host:
+https://developers.cloudflare.com/cache/how-to/purge-cache/purge-by-hostname/
 
 `tests/deploy-workflow.test.mjs` comprueba la estructura del workflow y ejecuta
 de verdad los scripts de validación, llave SSH y publicación con un `HOME`
 temporal; solo `ssh-keyscan` y `rsync` se sustituyen por dobles locales. No
 prueban la conectividad real de un runner de GitHub con la tailnet.
+
+`tests/cloudflare-purge.test.mjs` prueba `scripts/cloudflare-purge.mjs` con un
+`fetch` y un `sleep` simulados (URL, cabeceras, hosts, reintentos, timeouts,
+redacción del token) y ejecuta el CLI con `fetch` sustituido mediante
+`--import`. Ninguna prueba llama a la API real de Cloudflare.
 
 Para ver que las pruebas fallan con el workflow anterior:
 

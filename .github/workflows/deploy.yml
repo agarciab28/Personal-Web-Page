@@ -49,6 +49,31 @@ jobs:
           fi
           echo "Configuración de despliegue completa."
 
+      # La purga de caché de Cloudflare va tras rsync; se valida aquí para no
+      # publicar si luego no se va a poder purgar (ver docs/deploy.md).
+      - name: Validar configuración de Cloudflare
+        env:
+          CLOUDFLARE_ZONE_ID: ${{ vars.CLOUDFLARE_ZONE_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          errors=()
+          if [ -z "${CLOUDFLARE_ZONE_ID:-}" ]; then
+            errors+=("Falta la variable CLOUDFLARE_ZONE_ID del repositorio (Settings → Secrets and variables → Actions).")
+          elif ! [[ "$CLOUDFLARE_ZONE_ID" =~ ^[0-9a-f]{32}$ ]]; then
+            errors+=("CLOUDFLARE_ZONE_ID debe ser el Zone ID de alexgar.tech: 32 caracteres hexadecimales en minúscula.")
+          fi
+          if [ -z "${CLOUDFLARE_API_TOKEN:-}" ]; then
+            errors+=("Falta el secret CLOUDFLARE_API_TOKEN del repositorio (Settings → Secrets and variables → Actions).")
+          fi
+          if [ "${#errors[@]}" -gt 0 ]; then
+            for item in "${errors[@]}"; do
+              echo "::error::${item} Ver docs/deploy.md."
+            done
+            exit 1
+          fi
+          echo "Configuración de Cloudflare completa."
+
       - name: Preparar Node
         uses: actions/setup-node@v4
         with:
@@ -106,3 +131,12 @@ jobs:
       #   Create React App        →  build/
       #   SvelteKit (adapter-static) → build/
       #   La barra final es obligatoria: copia el CONTENIDO, no la carpeta.
+
+      # Solo alexgar.tech y www.alexgar.tech, nunca toda la zona. Si falla,
+      # el sitio ya está publicado pero el workflow queda en rojo (docs/deploy.md).
+      - name: Purgar caché de Cloudflare
+        timeout-minutes: 3
+        env:
+          CLOUDFLARE_ZONE_ID: ${{ vars.CLOUDFLARE_ZONE_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: node scripts/cloudflare-purge.mjs

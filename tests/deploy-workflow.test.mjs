@@ -256,3 +256,68 @@ test('publicar: el destino va entrecomillado y no ejecuta valores de la configur
   assert.equal(r.args.at(-1), 'deploy@100.124.13.38:/srv/$(touch pwned) web/');
   assert.ok(!existsSync(join(r.box.dir, 'pwned')));
 });
+
+// ── Purga de caché de Cloudflare ───────────────────────────────────────────
+
+const CF_PREFLIGHT = 'Validar configuración de Cloudflare';
+const CF_PURGE = 'Purgar caché de Cloudflare';
+const CF_TOKEN = 'cf-token-secreto-de-prueba';
+const CF_ENV = { CLOUDFLARE_ZONE_ID: '0123456789abcdef0123456789abcdef', CLOUDFLARE_API_TOKEN: CF_TOKEN };
+const CF_STEP_ENV = {
+  CLOUDFLARE_ZONE_ID: '${{ vars.CLOUDFLARE_ZONE_ID }}',
+  CLOUDFLARE_API_TOKEN: '${{ secrets.CLOUDFLARE_API_TOKEN }}',
+};
+
+test('Cloudflare: la validación previa es un paso propio antes de compilar y desplegar', () => {
+  const pre = steps.indexOf(stepNamed(CF_PREFLIGHT));
+  assert.notEqual(pre, steps.indexOf(stepNamed('Validar configuración de despliegue')));
+  assert.ok(pre < steps.indexOf(stepNamed('Instalar dependencias')));
+  assert.ok(pre < tailscaleIndex());
+  assert.ok(pre < steps.findIndex(usesSsh));
+  assert.deepEqual(stepNamed(CF_PREFLIGHT).env, CF_STEP_ENV);
+});
+
+test('Cloudflare: purga justo después de rsync, con semántica de éxito por defecto', () => {
+  const purge = stepNamed(CF_PURGE);
+  assert.equal(steps.indexOf(purge), steps.indexOf(stepNamed('Publicar en el servidor')) + 1);
+  assert.equal(steps.at(-1), purge, 'la purga es el último paso');
+  assert.equal(purge.if, undefined, 'sin if: (nada de always())');
+  assert.equal(purge['continue-on-error'], undefined);
+  assert.equal(purge.run, 'node scripts/cloudflare-purge.mjs\n');
+  assert.deepEqual(purge.env, CF_STEP_ENV);
+  const minutes = Number(purge['timeout-minutes']);
+  assert.ok(minutes > 0 && minutes <= 5, 'timeout-minutes acotado');
+  assert.doesNotMatch(workflow, /always\(\)|continue-on-error|purge_everything/);
+});
+
+test('Cloudflare: los demás pasos no reciben la configuración de Cloudflare', () => {
+  for (const step of steps) {
+    if (step.name === CF_PREFLIGHT || step.name === CF_PURGE) continue;
+    assert.ok(!Object.values(step.env).some((v) => v.includes('CLOUDFLARE')), `"${step.name}" recibe Cloudflare`);
+  }
+});
+
+test('Cloudflare: validación previa pasa con configuración correcta', () => {
+  const r = runStep(CF_PREFLIGHT, CF_ENV);
+  assert.equal(r.status, 0, r.out);
+  assert.ok(!r.out.includes(CF_TOKEN));
+});
+
+for (const [why, overrides, pattern] of [
+  ['falta la variable', { CLOUDFLARE_ZONE_ID: undefined }, /::error::.*variable CLOUDFLARE_ZONE_ID/],
+  ['la variable está vacía', { CLOUDFLARE_ZONE_ID: '' }, /::error::.*variable CLOUDFLARE_ZONE_ID/],
+  ['falta el secreto', { CLOUDFLARE_API_TOKEN: undefined }, /::error::.*secret CLOUDFLARE_API_TOKEN/],
+  ['el secreto está vacío', { CLOUDFLARE_API_TOKEN: '' }, /::error::.*secret CLOUDFLARE_API_TOKEN/],
+  ['el zone ID es corto', { CLOUDFLARE_ZONE_ID: '0123456789abcdef' }, /::error::.*CLOUDFLARE_ZONE_ID.*32/],
+  ['el zone ID tiene mayúsculas', { CLOUDFLARE_ZONE_ID: '0123456789ABCDEF0123456789ABCDEF' }, /::error::.*CLOUDFLARE_ZONE_ID.*32/],
+  ['el zone ID tiene salto de línea', { CLOUDFLARE_ZONE_ID: `${CF_ENV.CLOUDFLARE_ZONE_ID}\n` }, /::error::.*CLOUDFLARE_ZONE_ID.*32/],
+  ['el zone ID intenta inyección', { CLOUDFLARE_ZONE_ID: '$(touch pwned)' }, /::error::.*CLOUDFLARE_ZONE_ID.*32/],
+]) {
+  test(`Cloudflare: validación previa falla si ${why}, sin filtrar valores`, () => {
+    const r = runStep(CF_PREFLIGHT, { ...CF_ENV, ...overrides });
+    assert.equal(r.status, 1, r.out);
+    assert.match(r.out, pattern);
+    assert.ok(!r.out.includes(CF_TOKEN), 'el token aparece en el log');
+    assert.ok(!existsSync(join(r.box.dir, 'pwned')));
+  });
+}
