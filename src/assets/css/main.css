@@ -62,7 +62,7 @@ h1 em{color:var(--accent);font-style:italic;padding-right:.05em}
 @media (min-width:1000px){
   .hero{grid-template-columns:minmax(0,1fr) clamp(340px,33vw,450px);gap:clamp(24px,3vw,48px)}
   h1{font-size:clamp(60px,7.5vw,116px)}
-  .stage{width:100%;align-self:start;margin-top:calc(-1 * clamp(32px,6vw,64px))}
+  .stage{width:100%;align-self:start;margin-top:calc(24px - clamp(32px,6vw,64px))}
 }
 
 /* bridge */
