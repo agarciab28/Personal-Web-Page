@@ -29,8 +29,8 @@ header nav a.nav-cta:hover{background:var(--accent);color:var(--dark);text-decor
 
 /* hero */
 .hero-band{border-bottom:1px solid var(--line);border-top:1px solid var(--line)}
-.hero{display:grid;grid-template-columns:1fr;align-items:end;gap:36px;padding-top:clamp(32px,6vw,64px)}
-.hero-copy{padding-bottom:clamp(36px,5vw,64px)}
+.hero{display:grid;grid-template-columns:1fr;align-items:end;gap:0;padding-top:clamp(32px,6vw,64px)}
+.hero-support{padding-bottom:calc(clamp(36px,5vw,64px) + 36px)}
 .identity{margin:0 0 clamp(22px,3vw,38px);font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);line-height:1.8}
 h1{margin:0;font-family:Display,sans-serif;font-weight:400;font-size:clamp(38px,12.4vw,100px);line-height:.98;letter-spacing:-.05em}
 h1 .ln{display:block;overflow:hidden;padding:0 .06em .13em;margin:0 -.06em -.13em}
@@ -60,9 +60,14 @@ h1 em{color:var(--accent);font-style:italic;padding-right:.05em}
 .p-outline{left:27%;width:66%;top:2%;height:76%;border:1px solid #b58ae7;transform:translate(calc(var(--px)*-.7),calc(var(--py)*-.7)) rotate(8deg)}
 .portrait img{position:absolute;left:0;bottom:0;width:100%;height:auto;display:block;filter:grayscale(1);transform:translate(var(--px),var(--py));transition:transform .5s var(--ease)}
 @media (min-width:1000px){
-  .hero{grid-template-columns:minmax(0,1fr) clamp(340px,33vw,450px);gap:clamp(24px,3vw,48px)}
+  .hero{grid-template-columns:minmax(0,1fr) clamp(340px,33vw,450px);column-gap:clamp(24px,3vw,48px)}
   h1{font-size:clamp(60px,7.5vw,116px)}
-  .stage{width:100%;align-self:start;margin-top:10px}
+  .hero-copy{grid-column:1;grid-row:1;align-self:start}
+  .stage{grid-column:2;grid-row:1;width:100%;align-self:start;margin-top:10px}
+  .hero-support{grid-column:1/-1;grid-row:2;display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:start;column-gap:0;padding-bottom:clamp(36px,5vw,64px)}
+  .intro{grid-column:1/-1;max-width:62ch}
+  .actions,.find-me{margin-top:clamp(24px,3vw,36px);padding-top:12px;border-top:1px solid var(--line)}
+  .find-me{max-width:none;padding-left:clamp(24px,3vw,48px)}
 }
 
 /* bridge */
